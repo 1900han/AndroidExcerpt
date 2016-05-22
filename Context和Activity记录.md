@@ -27,6 +27,14 @@ Context数量=Activity数量+Service数量+1(**Application对应的Context实例
 
 两者的内存地址都是相同的,它们是同一个对象。``getApplication()``只能在Activity和Service才能调用，而BroadcastReceiver中只能借助``getApplicationContext()``方法。
 
+**使用Context的正确姿势**
+
+* Application的Context能搞定的，优先使用Application的Context
+* 不要让生命周期长于Activity的对象持有到Activity的引用
+* 尽量不要在Activity中使用非静态内部类，因为非静态内部类会隐式的持有外部实例的引用，如果使用静态内部类，将外部实例引用作为**弱引用**持有。
+
+
+
 ### Activity为什么划分这么多生命周期？
 
 1. 提供流畅的体验
