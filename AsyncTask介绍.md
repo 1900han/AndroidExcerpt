@@ -159,20 +159,41 @@ private static class SerialExecutor implements Executor{
 
 上面代码可以看出下面几点：
 
-* public synchronized void execute(final Runnable r)中的参数r正是从exec.execute(mFuture)传递过来的mFuture，后面将介绍mFuture
+* public synchronized void execute(final Runnable r)中的参数r正是从exec.execute(mFuture)传递过来的**mFuture**，后面将介绍mFuture
 * mTasks创建了一个队列，根据`offer`函数的注释可以知道这个队列用来保存要执行的任务，即每次调用AsyncTask要执行的任务，整个任务将当作一个参数传入到offer中
 * `execute`这个函数的整个逻辑都是在一个线程里面完成的
 * `scheduleNext()`方法中系统先从mTasks整个任务队列里面拿出一个任务，然后使用THREAD_POOL_EXECUTOR线程池执行这个任务。
 
 综合上面的几点，梳理一下流程，首先，要执行的任务被放进了mTasks，然后子啊scheduleNext中会去取出一个任务去执行，那么什么时候会调用scheduleNext，只有在任务队列取出元素为null（即任务队列中没有任务）和上一个任务执行完毕之后执行finally块中的代码才会调用scheduleNext，这**证实了3.0之后的AsyncTask默认是单个后台任务串行的方式执行任务的**。
 
-接下来看THREAD_POOL_EXECUTOR.execute(mActive)
+关注下**THREAD_POOL_EXECUTOR**
 
+```java
+public static final Executor THREAD_POOL_EXECUTOR = 
+       new ThreadPoolExecute(CORE_POOL_SIZE,MAXIMUM_POOL_SIZE,KEEP_ALIVE,
+  		TimeUnit,SECONDS,sPoolWorkQueue,sThreadFactory);
+```
 
+```java
+private static final int CORE_POOL_SIZE = 5;
+private static final int MAXIMUM_POOL_SIZE = 128;
+private static final int KEEP_ALIVE = 1;
 
+private static final ThreadFactory sThreadFactory = new ThreadFactory() {
+   private final AtomicInteger mCount = new AtomicInteger(1);
 
+      public Thread newThread(Runnable r) {
+         return new Thread(r, "AsyncTask #" + mCount.getAndIncrement());
+      }
+};
 
+private static final BlockingQueue<Runnable> sPoolWorkQueue =
+            new LinkedBlockingQueue<Runnable>(10);
+```
 
+可以看到如果此时这里有10个任务同时调用execute(),第一任务入队，然后在mActive = mTask.poll()!=null被取出，并且赋值给mActive，然后交给线程池去执行。然后第二个任务入队，但是此时mActive并不为null，并不会执行scheduleNext();所以如果第一个任务比较慢，10个任务都会进入队列等待；真正执行下一个任务的时机是，线程池完成第一个任务后，调用Runnable中的finally代码块中的scheduleNext，所以虽然内部有要给线程池，**其实调用的过程还是线性的，一个接一个的执行，相当于单线程**。
+
+上面的任务在运行时就会执行`r.run()`，而实际上调用的FutureTask中`run()`方法，这个run方法会执行Callable的`call()`方法，即会执行到mWorker的call方法。
 
 这里需要对mWorker和mFuture进行了解
 
@@ -199,9 +220,145 @@ public AsyncTask(){
 }
 ```
 
+可以看到mWorker在AsyncTask的构造函数中完成了初始化，并且因为是一个抽象类，在这里new了一个实现类，实现了`call()`方法，call方法设置了**mTaskInvoked = true**，且最终调用`doInBackground(mParams)`方法，并返回**Result**值作为参数给`postResult()`
 
+继续看`postResult()`
 
+```java
+private Result postResult(Result result){
+  @SuppressWarnings("unchecked")
+  Message message = sHandler.obtaninMessage(MESSAGE_POST_RESULT,new 	AsyncTaskResult<Result>(this,result));
+}
+```
 
+这里使用了异步消息机制，传递了一个消息message，message.what为MESSAGE_POST_RESULT;
+
+message.object = new AsyncTaskResult(this,result);
+
+```java
+private static class AsyncTaskResult<Data> {
+  final AsyncTask mTask;
+  final Data[] mData;
+  
+  AsyncTaskResult(AsyncTask task,Data... data){
+    mTask = task;
+    mData = data;
+  }
+}
+```
+
+AsyncTaskResult就是一个简单的携带参数的对象。
+
+此时就可以肯定在某处存在一个**sHandler**，且复写了其handleMessage方法等待消息的传入，以及消息的处理。
+
+```java
+private static final IntennalHandler extends Handler{
+  @SuppressWarning({"unchecked","RawUseOfParameterizedType"})
+  @Override
+  public void handleMessage(Message msg){
+    AsyncTaskResult result = (AsyncTaskResult) msg.obj;
+    switch (msg.what) {
+      case MESSAGE_POST_RESULT:
+        // There is only the result
+        result.mTask.finish(result.mData[0]);
+        break;
+      case MESSAGR_POST_PROGRESS:
+        result.mTask.onProgressUpdate(result.mData);
+        break;
+    }
+  }
+}
+```
+
+接收到MESSAGE_POST_RESULT消息时，执行了result.mTask.finish(result.mData[0]);即等于AsyncTask.this.finish(result)
+
+```java
+private void finish(Result result){
+  if(isCancelled()){
+     onCancelled(result);
+  }else {
+    onPostExecute(result);
+  }
+  mStatus = Status.FINISHED;
+}
+```
+
+如果调用了`cancel()`则执行onCancelled回调；正常执行的情况下调用`onPostExecute(result)`;**这里的调用时在handler的handleMessage中，所以是在UI线程中。**
+
+最终讲状态置为**FINISHED**。
+
+再接着看mFuture，依然时在AsyncTask的构造方法中完成初始化，将**mWorker**作为参数，复写了其**done()**方法。
+
+```java
+public AsyncTask(){
+  ...
+  mFuture = new FutureTask<Result>(mWorker){
+     @Override 
+     protected void done(){
+        try {
+            postResultIfNotInvoked(get());
+        } catch (InterruptedException e){
+  			android.util.Log.w(LOG_TAG,e);
+        } catch (ExecutionException e){
+            throw new RuntimeException("An error occured while executing doInBackgroun",e.getCause());
+		} catch (CancellationException e){
+  			postResultIfNotInvoked(null);
+		}
+     }
+  };
+}
+```
+
+任务执行结束会调用：postResultIfNotInvoked(get());get()表示获取mWorker的call的返回值，即Result
+
+```java
+private void postResultIfNotInvoked(Result result) {
+  final boolean wasTaskInvoked = mTaskInvoked.get();
+  if (!wasTaskInvoked) {
+     postResult(result);
+  }
+}
+```
+
+如果mTaskInvoked不为true，则执行postResult；但是在**mWorker初始化时就已经将mTaskInvoked为true**，所以一般这个postResult执行不到。
+
+最后一个方法`publishProgress()`
+
+```java
+protected final void publishProgress(Progress... values){
+  if(!isCancelled()){
+     sHandler.obtainMessage(MESSAGE_POST_PROGESS,
+                            new AsyncTaskResult<Progress>(this,values)).sendToTarget();
+  }
+}
+```
+
+这个方法很简单，直接使用sHandler发送一个消息，携带传入的值。
+
+```java
+private static class InternalHandler extends Handler {
+    @SuppressWarnings({"unchecked", "RawUseOfParameterizedType"})
+    @Override
+    public void handleMessage(Message msg) {
+        AsyncTaskResult result = (AsyncTaskResult) msg.obj;
+        switch (msg.what) {
+            case MESSAGE_POST_RESULT:
+                 // There is only one result
+                 result.mTask.finish(result.mData[0]);
+                 break;
+            case MESSAGE_POST_PROGRESS:
+                 result.mTask.onProgressUpdate(result.mData);
+                 break;
+        }
+    }
+}
+```
+
+在handleMessage中进行了我们的onProgressUpdate(Result.mData)的调用。
+
+### 缺陷
+
+可以分为两个部分说，在3.0以前，最大支持128个线程的并发，10个任务的等待。在3.0以后，无论有多少任务，都会在其内部**单线程**执行。
 
 ### 参考
 
@@ -214,3 +371,6 @@ public AsyncTask(){
 [关于Android中工作者线程的思考](http://droidyue.com/blog/2015/12/20/worker-thread-in-android/index.html)
 
 [Android之AsyncTask介绍](http://wangkuiwu.github.io/2014/06/25/AsyncTask/)
+
+[AsyncTask的介绍和使用](http://www.muzileecoding.com/androidsource/Android-AsyncTask.html)
+
