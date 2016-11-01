@@ -72,6 +72,32 @@ EventBus mEventBus = EventBus.builder().addIndex(new MyEventBusIndex()).build();
 mEventBus.register(this);
 ```
 
+注意这里是使用了索引.读源码的顺序和正常使用有区别
+
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.register%28%29.png)
+
+这里主要是这句代码
+
+![](http://o75vlu0to.bkt.clouddn.com/findSubscriberMethods.png)
+
+点进去,看详细代码
+
+![](http://o75vlu0to.bkt.clouddn.com/SubscriberMethodFinder.findSubscriberMethods%28%29.png)
+
+看到有两种查找订阅方法的方式
+
+现在使用的是索引,所以看`findUsingInfo()`
+
+![](http://o75vlu0to.bkt.clouddn.com/SubscriberMethodFinder.findUsingInfo%28%29.png)
+
+里面的FindState,值得认真看一下
+
+![](http://o75vlu0to.bkt.clouddn.com/FindState-1.png)
+
+![](http://o75vlu0to.bkt.clouddn.com/FindState-2.png)
+
+
+
 
 
 
