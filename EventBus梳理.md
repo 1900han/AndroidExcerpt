@@ -96,11 +96,36 @@ mEventBus.register(this);
 
 ![](http://o75vlu0to.bkt.clouddn.com/FindState-2.png)
 
+`checkAdd()`分为两个层级的check,第一层级只判断event type,这种方式速度快;第二层是多方面判断.anyMethodByEventType是一个HashMap,`hashMap.put()`方法返回的是之前的value,如果之前没有value的话返回的是null,通常一个订阅者(包括继承关系)不会有多个系统方法接收同一事件,但是可能会出现子类订阅这个事件的同时父类也订阅了此事件的情况,那么`checkAddWithMethodSignature()`就排上了用场.
 
+**这里主要思想就是不要出现一个订阅者(主要是继承关系的订阅者)有多个相同方法订阅的是同一事件.**
 
+最终返回**List<SubscriberMethod>**.
 
+看下SubscriberMethod类
 
+![](http://o75vlu0to.bkt.clouddn.com/SubscriberMethod.png)
 
+封装了EventBus所需要的全部信息
+
+#### 利用索引的查找订阅方法看完了,看另外一种方法,使用反射
+
+![](http://o75vlu0to.bkt.clouddn.com/SubscriberMethodFinder.findUsingReflection%28%29.png)
+
+![](http://o75vlu0to.bkt.clouddn.com/SubscriberMethodFinder.findUsingReflectionInSingleClass%28%29.png)
+
+#### 总结下subscriberClass过程
+
+1. 从复用池中拿到或者new一个FindState
+2. 将subscriberClass复制给findState
+   1. 进入循环,判断当前clazz不为null
+   2. 再判断findState.subscriberInfo是否为null
+      1. 不为null,说明使用索引
+      2. 为null,进入findUsingReflectionSingleClass()
+   3. 将clazz变为clazz的父类,再次进行循环的判断
+3. 返回所有的SubscriberMethod
+
+### 订阅
 
 
 
