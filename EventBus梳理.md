@@ -63,7 +63,37 @@ EventBus eventBus = EventBus.builder()
 
 ### 源码
 
-从三个方面入手**注册**,**发送事件**,**注销**
+从四个方面入手**创建,注册,发送事件,注销**
+
+#### 创建
+
+```java
+    /**
+     * Convenience singleton for apps using a process-wide EventBus instance.
+     */
+    public static EventBus getDefault() {
+        if (defaultInstance == null) {
+            synchronized (EventBus.class) {
+                if (defaultInstance == null) {
+                    defaultInstance = new EventBus();
+                }
+            }
+        }
+        return defaultInstance;
+    }
+```
+
+使用了**单例模式**,目的是为了保证`getDefault()`得到的都是同一个实例。如果不存在实例,就调用了`EventBus`的构造方法:
+
+```java
+private static final EventBusBuilder DEFAULT_BUILDER = new EventBusBuilder();
+```
+
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.EventBus%28%29.png)
+
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.EventBus%28EventBuilder%20builder%29.png)
+
+这里通过**EventBuilder**对象初始化**EventBus**.
 
 #### 注册
 
@@ -125,27 +155,26 @@ mEventBus.register(this);
    3. 将clazz变为clazz的父类,再次进行循环的判断
 3. 返回所有的SubscriberMethod
 
-### 订阅
+#### 订阅
 
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.subscribe%28%29-1.png)
 
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.subscribe%28%29-2.png)
 
+#### 发布事件
 
+```java
+EventBus.getDefault().post("str");
+```
 
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.post%28%29.png)
 
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.postSingleEventForEventType%28%29.png)
 
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.postToSubscription%28%29.png)
 
+#### 注销订阅
 
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.unregister%28%29.png)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.unsubscribeByEventType%28%29.png)
