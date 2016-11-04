@@ -178,3 +178,55 @@ EventBus.getDefault().post("str");
 ![](http://o75vlu0to.bkt.clouddn.com/EventBus.unregister%28%29.png)
 
 ![](http://o75vlu0to.bkt.clouddn.com/EventBus.unsubscribeByEventType%28%29.png)
+
+#### EventBus中的线程模型
+
+EventBus中共有四种线程模型:**PostThread,MainThread,BackgroundThread,Async**
+
+##### PostThread
+
+默认的线程模型,事件发布和接收在同一个线程,**适合用于完成耗时非常短的操作,以免阻塞UI**.
+
+##### MainThread
+
+订阅者的事件处理方法在主线程被调用,**适合处理开销小的事件**.以免阻塞主线程.
+
+##### BackgroundThread
+
+订阅者的事件处理在后台被调用.若事件发送线程位于主线程,EventBus将使用一个后台线程来逐个发送事件.
+
+##### Async
+
+事件处理位于一个单独的线程,该线程往往既不是发送事件的线程,也不是主线程.使用这个模型**适用于事件发送无需等待事件处理后才返回,适合处理耗时操作**,如请求网络.EventBus内部使用线程池来管理多个线程.
+
+下面从源码看这几种线程模型的调用
+
+主要入口是EventBus中的`postToSubscription(Subscription subscription, Object event, boolean isMainThread)`方法
+
+![](http://o75vlu0to.bkt.clouddn.com/EventBus.postToSubscription%28%29.png)
+
+通过解析线程模型,如果是MainThread线程模型,并且当前线程就是主线程,那么可以直接在当前主线程通过反射调用订阅者的事件处理方法.
+
+如果当前线程不是主线程,就借助Handler,将此事件发送到主线程处理.
+
+MainThreadPoster是EventBus的一个属性,类型为HandlerPoster.
+
+在EventBus的构造函数中是这样设置
+
+```java
+mainThreadPoster = new HandlerPoster(this, Looper.getMainLooper(), 10);
+```
+
+传入的**第二个参数**是**主线程的Looper**,**第三个参数**表示**主线程事件处理最大时间为10ms**,超时将重新调度事件.
+
+
+
+### 参考
+
+[老司机教你 “飙” EventBus 3](http://bugly.qq.com/bbs/forum.php?mod=viewthread&tid=938&fromuid=1147)
+
+[EventBus3.0源码解析](http://yydcdut.com/2016/03/07/eventbus3-code-analyse/#)
+
+[EventBus源码分析（一）：入口函数提纲挈领（2.4版本）](http://blog.csdn.net/wangshihui512/article/details/51802172)
+
+[EventBus 3.0 源代码分析](http://skykai521.github.io/2016/02/20/EventBus-3-0%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/)
