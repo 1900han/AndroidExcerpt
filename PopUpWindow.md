@@ -1,13 +1,13 @@
 ###构造函数
 ![](http://o75vlu0to.bkt.clouddn.com/PopupWindow%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0.png)
 ###显示PopupWindow
-```table
-方法|简洁
-showAsDropDown(View anchor)|相对某个控件的位置（**正左下方**），无偏移
-showAsDropDown(View anchor, int xoff, int yoff, int gravity)|
-showAsDropDown(View anchor, int xoff, int yoff)|相对某个控件的位置，有偏移（正数表示下方右边，负数表示（上方左边））
-showAtLocation(View parent, int gravity, int x, int y)|父容器容器相对位置，例如正中央Gravity.CENTER，下方Gravity.BOTTOM等
-```
+
+|方法|简洁|
+|showAsDropDown(View anchor)|相对某个控件的位置（**正左下方**），无偏移|
+|showAsDropDown(View anchor, int xoff, int yoff, int gravity)|
+showAsDropDown(View anchor, int xoff, int yoff)|相对某个控件的位置，有偏移（正数表示下方右边，负数表示（上方左边））|
+|showAtLocation(View parent, int gravity, int x, int y)|父容器容器相对位置，例如正中央Gravity.CENTER，下方Gravity.BOTTOM等|
+
 ###设置大小
 * 调用有宽高参数的构造函数
 ```java
