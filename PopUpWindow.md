@@ -2,7 +2,7 @@
 ![](http://o75vlu0to.bkt.clouddn.com/PopupWindow%E6%9E%84%E9%80%A0%E5%87%BD%E6%95%B0.png)
 ###显示PopupWindow
 
-| 方法                                       | 简洁                                       |
+| 方法                                       | 简介                                       |
 | ---------------------------------------- | ---------------------------------------- |
 | showAsDropDown(View anchor)              | 相对某个控件的位置（**正左下方**），无偏移                  |
 | showAsDropDown(View anchor, int xoff, int yoff, int gravity) |                                          |
