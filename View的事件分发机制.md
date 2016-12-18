@@ -1,10 +1,10 @@
-#### 1. 重点关注的对象和方法
+### 重点关注的对象和方法
 
 主要关注对象是**_MotionEvent_**，即点击事件。点击事件的分发过程主要由三个很重要的方法共同完成。
 
 **`public boolean dispatchTouchEvent(MotionEvent event)`**
 
-用来进行事件的分发。如果事件能够传递给当前的View，那么此方法**一定会被调用**，返回结果受当前VIew的**`onTouchEvent`**和**下级View**的**`dispatchTouchEvent`**方法的影响，表示是否消耗当前事件。**_在TextView等这种最小的View中不会有该方法。_**
+用来进行事件的分发。如果事件能够传递给当前的View，那么此方法**一定会被调用**，返回结果受当前View的**`onTouchEvent`**和**下级View**的**`dispatchTouchEvent`**方法的影响，表示是否消耗当前事件。**_在TextView等这种最小的View中不会有该方法。_**
 
 **`public boolean onInterceptTouchEvent(MotionEvent event)`**
 
@@ -28,7 +28,7 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 }
 ```
 
-#### 2. View中触摸事件的概述
+### View中触摸事件的概述
 
 View中的`dispatchTouchEvent()`会将事件传递给“自己的`onTouch()`”,"自己的`onTouchEvent()`"进行处理。而且**`onTouch()`**的**优先级**比**`onTouchEvent()`**的优先级要**高**。
 
@@ -40,4 +40,5 @@ View中的`dispatchTouchEvent()`会将事件传递给“自己的`onTouch()`”,
 * `onTouch()`的优先级比`onTouchEvent()`的高。
 
 `dispatchTouchEvent()`中分发事件的时候，会先将事件分配给`onTouch()`进行处理，然后才分配给	`onTouchEvent()`进行处理。如果`onTouch()`对触摸事件进行了处理，并且返回**true**；那么，该触摸事件就**不会分配**给`onTouchEvent()`进行处理了。只有当`onTouch()`**没有处理**，或者**处理了返回false时**，才会分配给`onTouchEvent()`进行处理。
-
+**View中的事件调度顺序**
+onTouchListener-->onTouchEvent-->onLongClickListener-->onClickListener
